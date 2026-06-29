@@ -256,3 +256,17 @@ class CliAgent(Agent):
         if model:
             cmd += ["-m", model]
         return cls(cmd, **kw)
+
+    @classmethod
+    def copilot(
+        cls, *, model: Optional[str] = None, skip_permissions: bool = False, **kw
+    ) -> "CliAgent":
+        # `-s` prints only the final answer (clean stdout); `--no-ask-user` keeps
+        # the agent autonomous instead of stopping to ask. `--allow-all-tools`
+        # auto-approves tool use for headless runs (the skip-permissions analogue).
+        cmd = ["copilot", "-p", "{combined}", "-s", "--no-ask-user"]
+        if skip_permissions:
+            cmd.append("--allow-all-tools")
+        if model:
+            cmd += ["--model", model]
+        return cls(cmd, **kw)

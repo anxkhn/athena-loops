@@ -44,6 +44,7 @@ _CLI_PRESETS = {
     "opencode": CliAgent.opencode,
     "aider": CliAgent.aider,
     "grok_build": CliAgent.grok_build,
+    "copilot": CliAgent.copilot,
 }
 BACKENDS = ["mock", "claude_api", "grok_api", *_CLI_PRESETS]
 DEFAULT_BACKEND = "auto"
@@ -96,6 +97,7 @@ def _backend_status(name: str) -> dict[str, Any]:
         "opencode": "opencode",
         "aider": "aider",
         "grok_build": "grok",
+        "copilot": "copilot",
     }[name]
     path = shutil.which(executable)
     status: dict[str, Any] = {
@@ -130,6 +132,7 @@ def _caller_backend(caller_agent: Optional[str] = None) -> Optional[str]:
         "grok_api": "grok_api",
         "xai_api": "grok_api",
         "xai": "grok_api",
+        "copilot": "copilot",
     }
     if hint in aliases:
         return aliases[hint]
@@ -143,6 +146,8 @@ def _caller_backend(caller_agent: Optional[str] = None) -> Optional[str]:
         ("CLAUDE_CODE", "claude_code"),
         ("CLAUDE_SESSION_ID", "claude_code"),
         ("GROK_AGENT", "grok_build"),
+        ("COPILOT_CLI", "copilot"),
+        ("COPILOT_AGENT_SESSION_ID", "copilot"),
     )
     for env_name, backend in env_hints:
         if os.environ.get(env_name):
@@ -246,7 +251,7 @@ def _build_agent(backend: str, cwd: Optional[str], skip_permissions: bool,
         if cwd:
             kw["cwd"] = cwd
         kw["skip_permissions"] = skip_permissions
-        if backend in ("claude_code", "grok_build") and model:
+        if backend in ("claude_code", "grok_build", "copilot") and model:
             kw["model"] = model
         return _CLI_PRESETS[backend](**kw)
     raise ValueError(f"unknown backend {backend!r}; choose from {BACKENDS}")
@@ -813,16 +818,16 @@ def build_server():
                 orchestrator proposes criteria itself.
             backend: Worker engine — "auto" (default: same agent family as the
                 caller when detectable), "claude_code", "codex", "opencode",
-                "aider", "grok_build", "claude_api", "grok_api", or "mock".
+                "aider", "grok_build", "copilot", "claude_api", "grok_api", or "mock".
             caller_agent: Optional caller identity hint for backend="auto", e.g.
-                "codex", "opencode", "claude", or "grok". Explicit backend overrides it.
+                "codex", "opencode", "copilot", "claude", or "grok". Explicit backend overrides it.
             cwd: Repo to work in. Required for coding tasks that edit files.
             max_iterations: Cap on decompose->review cycles (termination guard).
             skip_permissions: Let CLI workers use tools without prompting. Only
                 meaningful with `cwd`; the run is isolated in a worktree.
             isolate: When `cwd` is set, run in a throwaway git worktree/branch so
                 the caller's checkout is untouched (recommended).
-            model: Optional model override for claude_code / grok_build / claude_api / grok_api.
+            model: Optional model override for claude_code / grok_build / copilot / claude_api / grok_api.
             timeout: OPTIONAL seconds to cap EACH worker CLI subprocess call. None
                 (default) = no per-call cap. Leave unset for normal runs; set it
                 only to force a genuinely stuck worker to fail instead of hanging.

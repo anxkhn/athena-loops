@@ -7,8 +7,8 @@ implements the **orchestrator → worker → reviewer pattern** (the AI agent
 orchestration loop) as a deterministic harness with a closed feedback loop: a goal
 is decomposed into subtasks, fanned out to worker subagents, aggregated, and run
 through a review gate that loops until the work meets its success criteria. One
-loop drives any LLM backend — Anthropic Claude, Claude Code, Codex, opencode, or
-aider — through a single `Agent` interface, and it ships as both an **MCP server**
+loop drives any LLM backend — Anthropic Claude, Claude Code, Codex, opencode, aider,
+or GitHub Copilot — through a single `Agent` interface, and it ships as both an **MCP server**
 and a plain CLI so any coding agent can call it.
 
 The design principle: **the loop is a harness (deterministic code), not a skill.**
@@ -97,7 +97,7 @@ from agentloop.adapters import CliAgent
 
 # Point the worker at a repo and let it actually edit files headlessly:
 agent = CliAgent.claude_code(cwd="/path/to/repo", skip_permissions=True)
-orch = Orchestrator(agent)                     # or .codex() / .opencode() / .aider() / .grok_build()
+orch = Orchestrator(agent)                     # or .codex() / .opencode() / .aider() / .grok_build() / .copilot()
 result = orch.run(goal="Add a /health endpoint + test", success_criteria="test passes")
 ```
 
@@ -156,7 +156,7 @@ python3 -m examples.run_with_cli_agent claude /path/to/repo
 ```
 
 ```bash
-python3 -m examples.run_with_cli_agent claude   # codex | opencode | aider | grok
+python3 -m examples.run_with_cli_agent claude   # codex | opencode | aider | grok | copilot
 ```
 
 Custom CLI? It's just a command template (`{prompt}`, `{system}`, `{combined}`;
@@ -292,8 +292,8 @@ is unnecessary: `claude mcp add athena-loops -- agentloop-mcp`.
 Then (restart the session first) ask the host agent to "use agentloop to
 orchestrate: <goal>". The default `backend="auto"` picks the matching worker for
 the caller (`codex` from Codex, `opencode` from OpenCode, `claude_code` from
-Claude Code when detectable). Choose a concrete `backend` (`claude_code`,
-`codex`, `mock`, …) to override that.
+Claude Code, `copilot` from GitHub Copilot when detectable). Choose a concrete
+`backend` (`claude_code`, `codex`, `copilot`, `mock`, …) to override that.
 
 For agents that *don't* speak MCP but can run a shell, there's a plain CLI over
 the same contract:

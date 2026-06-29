@@ -6,6 +6,7 @@ CLI you point it at — so the workers get that agent's tools and repo access.
     python3 -m examples.run_with_cli_agent claude  [REPO_DIR]
     python3 -m examples.run_with_cli_agent codex   [REPO_DIR]
     python3 -m examples.run_with_cli_agent grok    [REPO_DIR]
+    python3 -m examples.run_with_cli_agent copilot [REPO_DIR]
     python3 -m examples.run_with_cli_agent opencode
 
 Pass REPO_DIR to run the worker against a real repo. The run happens in an
@@ -30,6 +31,7 @@ BUILDERS = {
     "opencode": CliAgent.opencode,
     "aider": CliAgent.aider,
     "grok": CliAgent.grok_build,
+    "copilot": CliAgent.copilot,
 }
 
 GOAL = "Add a /health endpoint that returns {status: ok} and a test for it."

@@ -132,6 +132,7 @@ def test_auto_backend_uses_caller_agent_hint(monkeypatch):
     assert _resolve_backend("auto", caller_agent="opencode") == "opencode"
     assert _resolve_backend("auto", caller_agent="claude") == "claude_code"
     assert _resolve_backend("auto", caller_agent="grok") == "grok_build"
+    assert _resolve_backend("auto", caller_agent="copilot") == "copilot"
 
 
 def test_auto_backend_uses_environment_hint(monkeypatch):
@@ -149,6 +150,16 @@ def test_auto_backend_uses_grok_environment_hint(monkeypatch):
     assert _resolve_backend("auto") == "grok_build"
 
 
+def test_auto_backend_uses_copilot_environment_hint(monkeypatch):
+    for name in (
+        "OPENCODE", "OPENCODE_RUN_ID", "CODEX_RUN_ID", "CODEX_SESSION_ID",
+        "CLAUDECODE", "CLAUDE_CODE", "CLAUDE_SESSION_ID", "GROK_AGENT",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("COPILOT_CLI", "1")
+    assert _resolve_backend("auto") == "copilot"
+
+
 def test_explicit_backend_overrides_caller_hint():
     assert _resolve_backend("codex", caller_agent="opencode") == "codex"
 
@@ -158,6 +169,7 @@ def test_backend_aliases():
     assert _resolve_backend("grok-build") == "grok_build"
     assert _resolve_backend("xai") == "grok_api"
     assert _resolve_backend("grok-api") == "grok_api"
+    assert _resolve_backend("copilot") == "copilot"
 
 
 def test_orchestrate_impl_reports_cli_loop_failure_after_intake_fallback(monkeypatch):
@@ -218,6 +230,14 @@ def test_isolate_runs_in_worktree_and_reports_it():
 def test_backends_listed():
     assert "mock" in BACKENDS and "claude_code" in BACKENDS
     assert "grok_api" in BACKENDS and "grok_build" in BACKENDS
+    assert "copilot" in BACKENDS
+
+
+def test_build_agent_forwards_model_to_copilot():
+    from agentloop.mcp_server import _build_agent
+    agent = _build_agent("copilot", cwd=None, skip_permissions=True,
+                          model="gpt-5.4", timeout=None)
+    assert "--model" in agent.command and "gpt-5.4" in agent.command
 
 
 def test_doctor_reports_backends_and_timeout_guidance(tmp_path):

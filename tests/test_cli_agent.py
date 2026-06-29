@@ -136,6 +136,8 @@ def test_skip_permissions_adds_bypass_flag():
     assert "--yes-always" in CliAgent.aider(skip_permissions=True).command
     assert "--always-approve" in CliAgent.grok_build(skip_permissions=True).command
     assert "--always-approve" not in CliAgent.grok_build().command
+    assert "--allow-all-tools" in CliAgent.copilot(skip_permissions=True).command
+    assert "--allow-all-tools" not in CliAgent.copilot().command
 
 
 def test_grok_build_preset_shape():
@@ -144,6 +146,13 @@ def test_grok_build_preset_shape():
     assert "--output-format" in cmd and "plain" in cmd
     assert "--no-alt-screen" in cmd
     assert cmd[-2:] == ["-m", "grok-build-0.1"]
+
+
+def test_copilot_preset_shape():
+    cmd = CliAgent.copilot(model="gpt-5.4").command
+    assert cmd[:2] == ["copilot", "-p"]
+    assert "-s" in cmd and "--no-ask-user" in cmd
+    assert cmd[-2:] == ["--model", "gpt-5.4"]
 
 
 def test_build_agent_passes_skip_permissions_to_opencode():
