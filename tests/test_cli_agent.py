@@ -134,6 +134,16 @@ def test_skip_permissions_adds_bypass_flag():
     assert "--print-logs" in CliAgent.opencode().command
     assert "--dangerously-skip-permissions" not in CliAgent.opencode().command
     assert "--yes-always" in CliAgent.aider(skip_permissions=True).command
+    assert "--always-approve" in CliAgent.grok_build(skip_permissions=True).command
+    assert "--always-approve" not in CliAgent.grok_build().command
+
+
+def test_grok_build_preset_shape():
+    cmd = CliAgent.grok_build(model="grok-build-0.1").command
+    assert cmd[:4] == ["grok", "--no-auto-update", "-p", "{combined}"]
+    assert "--output-format" in cmd and "plain" in cmd
+    assert "--no-alt-screen" in cmd
+    assert cmd[-2:] == ["-m", "grok-build-0.1"]
 
 
 def test_build_agent_passes_skip_permissions_to_opencode():
@@ -141,6 +151,13 @@ def test_build_agent_passes_skip_permissions_to_opencode():
     agent = _build_agent("opencode", cwd=None, skip_permissions=True,
                          model=None, timeout=None)
     assert "--dangerously-skip-permissions" in agent.command
+
+
+def test_build_agent_passes_model_to_grok_build():
+    from agentloop.mcp_server import _build_agent
+    agent = _build_agent("grok_build", cwd=None, skip_permissions=True,
+                         model="grok-build-0.1", timeout=None)
+    assert "-m" in agent.command and "grok-build-0.1" in agent.command
 
 
 def test_cwd_forwards_through_presets():

@@ -2,6 +2,7 @@
 
     python -m examples.run_demo            # uses the zero-dependency MockAgent
     python -m examples.run_demo --claude   # uses Claude (needs anthropic + API key)
+    python -m examples.run_demo --grok     # uses Grok (needs openai + XAI_API_KEY)
 """
 
 from __future__ import annotations
@@ -31,6 +32,9 @@ def main() -> None:
     if "--claude" in sys.argv:
         from agentloop.adapters import ClaudeAgent
         agent = ClaudeAgent()
+    elif "--grok" in sys.argv:
+        from agentloop.adapters import GrokAgent
+        agent = GrokAgent()
     else:
         agent = MockAgent()
 

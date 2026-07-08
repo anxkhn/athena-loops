@@ -131,6 +131,7 @@ def test_auto_backend_uses_caller_agent_hint(monkeypatch):
     assert _resolve_backend("auto", caller_agent="codex") == "codex"
     assert _resolve_backend("auto", caller_agent="opencode") == "opencode"
     assert _resolve_backend("auto", caller_agent="claude") == "claude_code"
+    assert _resolve_backend("auto", caller_agent="grok") == "grok_build"
 
 
 def test_auto_backend_uses_environment_hint(monkeypatch):
@@ -138,8 +139,25 @@ def test_auto_backend_uses_environment_hint(monkeypatch):
     assert _resolve_backend("auto") == "opencode"
 
 
+def test_auto_backend_uses_grok_environment_hint(monkeypatch):
+    for name in (
+        "OPENCODE", "OPENCODE_RUN_ID", "CODEX_RUN_ID", "CODEX_SESSION_ID",
+        "CLAUDECODE", "CLAUDE_CODE", "CLAUDE_SESSION_ID",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GROK_AGENT", "1")
+    assert _resolve_backend("auto") == "grok_build"
+
+
 def test_explicit_backend_overrides_caller_hint():
     assert _resolve_backend("codex", caller_agent="opencode") == "codex"
+
+
+def test_backend_aliases():
+    assert _resolve_backend("grok") == "grok_build"
+    assert _resolve_backend("grok-build") == "grok_build"
+    assert _resolve_backend("xai") == "grok_api"
+    assert _resolve_backend("grok-api") == "grok_api"
 
 
 def test_orchestrate_impl_reports_cli_loop_failure_after_intake_fallback(monkeypatch):
@@ -199,6 +217,7 @@ def test_isolate_runs_in_worktree_and_reports_it():
 
 def test_backends_listed():
     assert "mock" in BACKENDS and "claude_code" in BACKENDS
+    assert "grok_api" in BACKENDS and "grok_build" in BACKENDS
 
 
 def test_doctor_reports_backends_and_timeout_guidance(tmp_path):
@@ -207,6 +226,8 @@ def test_doctor_reports_backends_and_timeout_guidance(tmp_path):
     assert out["cwd"]["exists"] is True
     assert "mock" in out["backends"] and out["backends"]["mock"]["available"] is True
     assert "claude_code" in out["backends"]
+    assert out["backends"]["grok_api"]["env"] == "XAI_API_KEY"
+    assert out["backends"]["grok_build"]["executable"] == "grok"
     assert out["timeouts"]["recommended_mcp_request_timeout_ms"] >= 600000
     assert any("-32001" in rec for rec in out["recommendations"])
 

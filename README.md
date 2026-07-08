@@ -52,11 +52,36 @@ print(result.final_output)
 
 ## Use a real model
 
+Claude via Anthropic:
+
 ```bash
 pip install -e ".[claude]"
 export ANTHROPIC_API_KEY=sk-...
 python3 -m examples.run_demo --claude
 ```
+
+Grok via xAI's OpenAI-compatible API:
+
+```bash
+pip install -e ".[grok]"
+export XAI_API_KEY=xai-...
+python3 -m examples.run_demo --grok
+```
+
+`GrokAgent` defaults to `grok-build-0.1` for coding-oriented loop work; pass
+`model="grok-4.3"` or `--model grok-4.3` for general chat-style work.
+
+Grok Build CLI as the worker:
+
+```bash
+curl -fsSL https://x.ai/cli/install.sh | bash
+grok login
+agentloop run --goal "Add a /health endpoint + test" --criteria "test passes" \
+  --backend grok_build --cwd /path/to/repo --skip-permissions
+```
+
+Use `backend="grok_build"` for the local Grok Build CLI (`grok -p`), or
+`backend="grok_api"` for direct xAI API calls.
 
 ## Plug into any coding agent
 
@@ -72,7 +97,7 @@ from agentloop.adapters import CliAgent
 
 # Point the worker at a repo and let it actually edit files headlessly:
 agent = CliAgent.claude_code(cwd="/path/to/repo", skip_permissions=True)
-orch = Orchestrator(agent)                     # or .codex() / .opencode() / .aider()
+orch = Orchestrator(agent)                     # or .codex() / .opencode() / .aider() / .grok_build()
 result = orch.run(goal="Add a /health endpoint + test", success_criteria="test passes")
 ```
 
@@ -95,8 +120,8 @@ For big builds, keep subgoals small (the worker has to finish one in a single
 call) and give the loop room with `max_iterations`; one cold worker can't build
 everything in one shot.
 
-Auth piggybacks on the CLI's own login, so a Claude.ai / ChatGPT **subscription
-OAuth** session works with no API key.
+Auth piggybacks on the CLI's own login, so Claude.ai, ChatGPT, or Grok Build
+subscription/OAuth sessions work with no provider API key.
 
 **Isolated runs.** The safe default for `skip_permissions` is to run inside a
 throwaway git worktree on its own branch — your main checkout is never touched:
@@ -131,7 +156,7 @@ python3 -m examples.run_with_cli_agent claude /path/to/repo
 ```
 
 ```bash
-python3 -m examples.run_with_cli_agent claude   # codex | opencode | aider
+python3 -m examples.run_with_cli_agent claude   # codex | opencode | aider | grok
 ```
 
 Custom CLI? It's just a command template (`{prompt}`, `{system}`, `{combined}`;
@@ -394,9 +419,9 @@ reviewer gates the aggregated result against success criteria, looping with
 refined plans until done or a budget guard stops it.
 
 **Which LLM backends does agentloop support?** Any model behind a single
-`Agent.run()` method. Built-in adapters cover a dependency-free MockAgent, the
-Anthropic Claude SDK, and headless coding-agent CLIs — Claude Code, Codex,
-opencode, and aider — via `CliAgent`.
+`Agent.run()` method. Built-in adapters cover a dependency-free MockAgent,
+Anthropic Claude, xAI Grok, and headless coding-agent CLIs — Claude Code, Codex,
+opencode, aider, and Grok Build — via `CliAgent`.
 
 **How do I orchestrate multiple coding agents from Claude Code, Cursor, or Cline?**
 Run agentloop as an MCP server (`python3 -m agentloop.mcp_server`) and call its
@@ -404,8 +429,8 @@ Run agentloop as an MCP server (`python3 -m agentloop.mcp_server`) and call its
 shell.
 
 **Does agentloop need an API key?** No — when you drive it through a coding-agent
-CLI it piggybacks on that CLI's own login, so a Claude.ai or ChatGPT subscription
-OAuth session works without an `ANTHROPIC_API_KEY`.
+CLI it piggybacks on that CLI's own login, so subscription/OAuth sessions can work
+without provider API keys. Direct API backends use their provider keys.
 
 **How does agentloop avoid infinite agent loops?** A `Budget` caps iterations,
 wall-clock time, and total agent calls, and a failing subagent becomes a `FAILED`

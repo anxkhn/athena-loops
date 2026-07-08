@@ -2,9 +2,9 @@
 
 This is the "inward" plug: instead of calling an LLM API directly, each role
 (decomposer / subagent / reviewer) is executed by whatever coding agent you have
-installed — Claude Code, Codex, opencode, Aider — so the workers get that agent's
-real tools, file access, and repo context. Nothing in the loop changes; this just
-implements the same `Agent` seam by shelling out.
+installed — Claude Code, Codex, opencode, Aider, Grok Build — so the workers get
+that agent's real tools, file access, and repo context. Nothing in the loop
+changes; this just implements the same `Agent` seam by shelling out.
 
 A non-zero exit or timeout raises, which the scheduler turns into a FAILED
 TaskResult (with retries) rather than a silent wrong answer.
@@ -238,4 +238,21 @@ class CliAgent(Agent):
     def aider(cls, *, skip_permissions: bool = False, **kw) -> "CliAgent":
         cmd = ["aider", "--message", "{combined}", "--no-auto-commits"]
         cmd.append("--yes-always" if skip_permissions else "--yes")
+        return cls(cmd, **kw)
+
+    @classmethod
+    def grok_build(
+        cls, *, model: Optional[str] = None, skip_permissions: bool = False, **kw
+    ) -> "CliAgent":
+        # Grok Build's headless mode uses `-p/--single`. Keep output plain so the
+        # normal CliAgent stdout path is enough, and disable alternate-screen and
+        # auto-update behavior for scriptability.
+        cmd = [
+            "grok", "--no-auto-update", "-p", "{combined}",
+            "--output-format", "plain", "--no-alt-screen",
+        ]
+        if skip_permissions:
+            cmd.append("--always-approve")
+        if model:
+            cmd += ["-m", model]
         return cls(cmd, **kw)

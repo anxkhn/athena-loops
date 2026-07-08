@@ -43,8 +43,9 @@ _CLI_PRESETS = {
     "codex": CliAgent.codex,
     "opencode": CliAgent.opencode,
     "aider": CliAgent.aider,
+    "grok_build": CliAgent.grok_build,
 }
-BACKENDS = ["mock", "claude_api", *_CLI_PRESETS]
+BACKENDS = ["mock", "claude_api", "grok_api", *_CLI_PRESETS]
 DEFAULT_BACKEND = "auto"
 RECOMMENDED_MCP_TIMEOUT_MS = 600_000
 
@@ -81,12 +82,20 @@ def _backend_status(name: str) -> dict[str, Any]:
             "env": "ANTHROPIC_API_KEY",
             "notes": "requires ANTHROPIC_API_KEY in the MCP server environment",
         }
+    if name == "grok_api":
+        return {
+            "available": bool(os.environ.get("XAI_API_KEY")),
+            "kind": "api",
+            "env": "XAI_API_KEY",
+            "notes": "requires XAI_API_KEY and the openai SDK in the MCP server environment",
+        }
 
     executable = {
         "claude_code": "claude",
         "codex": "codex",
         "opencode": "opencode",
         "aider": "aider",
+        "grok_build": "grok",
     }[name]
     path = shutil.which(executable)
     status: dict[str, Any] = {
@@ -115,6 +124,12 @@ def _caller_backend(caller_agent: Optional[str] = None) -> Optional[str]:
         "opencode": "opencode",
         "open_code": "opencode",
         "aider": "aider",
+        "grok": "grok_build",
+        "grok_build": "grok_build",
+        "grok_cli": "grok_build",
+        "grok_api": "grok_api",
+        "xai_api": "grok_api",
+        "xai": "grok_api",
     }
     if hint in aliases:
         return aliases[hint]
@@ -127,6 +142,7 @@ def _caller_backend(caller_agent: Optional[str] = None) -> Optional[str]:
         ("CLAUDECODE", "claude_code"),
         ("CLAUDE_CODE", "claude_code"),
         ("CLAUDE_SESSION_ID", "claude_code"),
+        ("GROK_AGENT", "grok_build"),
     )
     for env_name, backend in env_hints:
         if os.environ.get(env_name):
@@ -147,6 +163,14 @@ def _resolve_backend(backend: Optional[str] = DEFAULT_BACKEND,
     aliases = {
         "claude": "claude_code",
         "open_code": "opencode",
+        "grok": "grok_build",
+        "grok-build": "grok_build",
+        "grok build": "grok_build",
+        "grok_cli": "grok_build",
+        "grok-api": "grok_api",
+        "grok api": "grok_api",
+        "xai_api": "grok_api",
+        "xai": "grok_api",
     }
     return aliases.get(requested, requested)
 
@@ -214,12 +238,15 @@ def _build_agent(backend: str, cwd: Optional[str], skip_permissions: bool,
     if backend == "claude_api":
         from .adapters import ClaudeAgent
         return ClaudeAgent(model=model) if model else ClaudeAgent()
+    if backend == "grok_api":
+        from .adapters import GrokAgent
+        return GrokAgent(model=model, timeout=timeout) if model else GrokAgent(timeout=timeout)
     if backend in _CLI_PRESETS:
         kw: dict[str, Any] = {"timeout": timeout}
         if cwd:
             kw["cwd"] = cwd
         kw["skip_permissions"] = skip_permissions
-        if backend == "claude_code" and model:
+        if backend in ("claude_code", "grok_build") and model:
             kw["model"] = model
         return _CLI_PRESETS[backend](**kw)
     raise ValueError(f"unknown backend {backend!r}; choose from {BACKENDS}")
@@ -786,16 +813,16 @@ def build_server():
                 orchestrator proposes criteria itself.
             backend: Worker engine — "auto" (default: same agent family as the
                 caller when detectable), "claude_code", "codex", "opencode",
-                "aider", "claude_api", or "mock".
+                "aider", "grok_build", "claude_api", "grok_api", or "mock".
             caller_agent: Optional caller identity hint for backend="auto", e.g.
-                "codex", "opencode", or "claude". Explicit backend overrides it.
+                "codex", "opencode", "claude", or "grok". Explicit backend overrides it.
             cwd: Repo to work in. Required for coding tasks that edit files.
             max_iterations: Cap on decompose->review cycles (termination guard).
             skip_permissions: Let CLI workers use tools without prompting. Only
                 meaningful with `cwd`; the run is isolated in a worktree.
             isolate: When `cwd` is set, run in a throwaway git worktree/branch so
                 the caller's checkout is untouched (recommended).
-            model: Optional model override for claude_code / claude_api.
+            model: Optional model override for claude_code / grok_build / claude_api / grok_api.
             timeout: OPTIONAL seconds to cap EACH worker CLI subprocess call. None
                 (default) = no per-call cap. Leave unset for normal runs; set it
                 only to force a genuinely stuck worker to fail instead of hanging.
@@ -931,7 +958,9 @@ def build_server():
             "default": DEFAULT_BACKEND,
             "resolved_default": _resolve_backend(DEFAULT_BACKEND),
             "notes": "CLI backends reuse that tool's own login (incl. subscription "
-                     "OAuth); claude_api needs ANTHROPIC_API_KEY; mock is for tests. "
+                     "OAuth); grok_build uses the local grok CLI login or XAI_API_KEY; "
+                     "claude_api needs ANTHROPIC_API_KEY; grok_api needs XAI_API_KEY "
+                     "and the openai SDK; mock is for tests. "
                      "Run doctor() before guessing about backend availability.",
             "timeouts": {
                 "model": "orchestrate is detached by default; it returns a run_id "
